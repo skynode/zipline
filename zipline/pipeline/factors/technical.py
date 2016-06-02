@@ -31,10 +31,10 @@ from zipline.utils.math_utils import (
     nanargmax,
     nanargmin,
     nanmax,
+    nanmin,
     nanmean,
     nanstd,
     nansum,
-    nanmin,
 )
 from .factor import CustomFactor
 
@@ -517,6 +517,42 @@ class FastStochasticOscillator(CustomFactor):
                 'tc': today_closes,
                 'll': lowest_lows,
                 'hh': highest_highs,
+            }
+        )
+
+
+class WilliamsR(CustomFactor):
+    """
+    Williams' %R Technical Indicator
+
+    %R = -100 * ((Highest High - Close) / (Highest High - Lowest Low))
+
+    %R is a measure of how close, relatively speaking, the current price of an
+    asset is to the upper and lower bounds of the recent trading range
+
+    **Default Inputs:**
+        [USEquityPricing.high, USEquityPricing.low, USEquityPricing.close]
+
+    **Default Window Length:** 14
+
+    See Also
+    --------
+    http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:williams_r  # noqa
+    """
+    inputs = (USEquityPricing.high, USEquityPricing.low, USEquityPricing.close)
+    window_length = 14
+
+    def compute(self, today, assets, out, highs, lows, closes):
+        highest_highs = nanmax(highs, axis=0)
+        lowest_lows = nanmin(lows, axis=0)
+        todays_closes = closes[-1]
+
+        evaluate(
+            '-100 * ((hh - tc) / (hh - ll))',
+            local_dict={
+                'hh': highest_highs,
+                'tc': todays_closes,
+                'll': lowest_lows,
             },
             global_dict={},
             out=out,

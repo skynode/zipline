@@ -11,9 +11,10 @@ from zipline.pipeline.data import USEquityPricing
 from zipline.pipeline.engine import SimplePipelineEngine
 from zipline.pipeline.term import AssetExists
 from zipline.pipeline.factors import (
-    BollingerBands,
     Aroon,
-    FastStochasticOscillator
+    BollingerBands,
+    FastStochasticOscillator,
+    WilliamsR,
 )
 from zipline.testing import ExplodingObject, parameter_space
 from zipline.testing.fixtures import WithAssetFinder, ZiplineTestCase
@@ -53,6 +54,78 @@ class WithTechnicalFactor(WithAssetFinder):
             self.assets,
             initial_workspace,
         )
+
+
+class TestWilliamsR(ZiplineTestCase):
+
+    def test_willr(self):
+        r = WilliamsR()
+
+        today = pd.Timestamp('2014')
+        assets = np.arange(3, dtype=np.int64)
+        out = np.empty(3, dtype=np.float64)
+
+        nan = np.nan
+
+        # The correct formula should be as follows:
+        # %R = -100 * ((Highest High - Close) / (Highest High - Lowest Low))
+
+        highs = np.array([[1.0, 2.0, 3.0],  # Should be ignored
+                          [nan, nan, nan],
+                          [10., nan, nan],  # Should be used.
+                          [nan, 11., nan],
+                          [nan, nan, 12.],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [nan, nan, nan],
+                          [9.0, 10., 11.]])  # Should be ignored.
+        expected_highest_highs = np.array([10.0, 11.0, 12.0])
+
+        lows = np.array([[10., 11., 12.],  # Should be ignored
+                         [nan, nan, nan],
+                         [nan, nan, 4.0],  # Should be used.
+                         [nan, 3.0, nan],
+                         [2.0, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [nan, nan, nan],
+                         [11., 12., 13.]])  # Should be ignored.
+        expected_lowest_lows = np.array([2.0, 3.0, 4.0])
+
+        closes = np.array([[10., 11., 12.],  # Should be ignored
+                           [nan, nan, nan],
+                           [nan, nan, 4.0],  # Should be ignored.
+                           [nan, 3.0, nan],
+                           [2.0, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [nan, nan, nan],
+                           [5.0, 6.0, 7.0]])  # Should be used
+        expected_closes = np.array([5.0, 6.0, 7.0])
+
+        r.compute(today, assets, out, highs, lows, closes)
+
+        expected_result = -100 * (
+            (expected_highest_highs - expected_closes) /
+            (expected_highest_highs - expected_lowest_lows)
+        )
+
+        assert_equal(out, expected_result)
 
 
 class BollingerBandsTestCase(WithTechnicalFactor, ZiplineTestCase):
