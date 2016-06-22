@@ -30,9 +30,10 @@ from . risk import (
     check_entry,
     choose_treasury,
     downside_risk,
-    sharpe_ratio,
     sortino_ratio,
 )
+
+from qrisk import sharpe_ratio
 
 log = logbook.Logger('Risk Cumulative')
 
@@ -388,9 +389,8 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
         http://en.wikipedia.org/wiki/Sharpe_ratio
         """
         return sharpe_ratio(
-            self.algorithm_volatility[self.latest_dt_loc],
-            self.annualized_mean_returns_cont[self.latest_dt_loc],
-            self.daily_treasury[self.latest_dt.date()])
+            self.algorithm_returns,
+            self.benchmark_returns)
 
     def calculate_sortino(self):
         """

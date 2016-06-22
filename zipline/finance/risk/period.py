@@ -30,9 +30,10 @@ from . risk import (
     check_entry,
     downside_risk,
     information_ratio,
-    sharpe_ratio,
     sortino_ratio,
 )
+
+from qrisk import sharpe_ratio
 
 log = logbook.Logger('Risk Period')
 
@@ -215,9 +216,8 @@ class RiskMetricsPeriod(object):
         """
         http://en.wikipedia.org/wiki/Sharpe_ratio
         """
-        return sharpe_ratio(self.algorithm_volatility,
-                            self.algorithm_period_returns,
-                            self.treasury_period_return)
+        return sharpe_ratio(self.algorithm_returns,
+                            self.benchmark_returns)
 
     def calculate_sortino(self):
         """
