@@ -18,9 +18,6 @@ import calendar
 import numpy as np
 import pytz
 
-from itertools import chain
-from six import itervalues
-
 import zipline.finance.risk as risk
 from zipline.utils import factory
 
@@ -175,8 +172,7 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
              for x in self.metrics_06.six_month_periods],
             ANSWER_KEY.ALGORITHM_PERIOD_RETURNS['6-month'])
         np.testing.assert_almost_equal(
-            [x.algorithm_period_returns
-             for x in self.metrics_06.year_periods],
+            [x.algorithm_period_returns for x in self.metrics_06.year_periods],
             ANSWER_KEY.ALGORITHM_PERIOD_RETURNS['year'])
 
     def test_algorithm_volatility_06(self):
@@ -234,61 +230,36 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
             [x.sortino for x in self.metrics_06.month_periods],
             ANSWER_KEY.ALGORITHM_PERIOD_SORTINO['Monthly'],
             decimal=3)
-
         np.testing.assert_almost_equal(
             [x.sortino for x in self.metrics_06.three_month_periods],
             ANSWER_KEY.ALGORITHM_PERIOD_SORTINO['3-Month'],
             decimal=3)
-
         np.testing.assert_almost_equal(
             [x.sortino for x in self.metrics_06.six_month_periods],
             ANSWER_KEY.ALGORITHM_PERIOD_SORTINO['6-month'],
             decimal=3)
-
         np.testing.assert_almost_equal(
             [x.sortino for x in self.metrics_06.year_periods],
             ANSWER_KEY.ALGORITHM_PERIOD_SORTINO['year'],
             decimal=3)
 
     def test_algorithm_information_06(self):
-        self.assertEqual([round(x.information, 3)
-                          for x in self.metrics_06.month_periods],
-                         [0.131,
-                          -0.11,
-                          -0.067,
-                          0.136,
-                          0.301,
-                          -0.387,
-                          0.107,
-                          -0.032,
-                          -0.058,
-                          0.069,
-                          0.095,
-                          -0.123])
-        self.assertEqual([round(x.information, 3)
-                          for x in self.metrics_06.three_month_periods],
-                         [-0.013,
-                          -0.009,
-                          0.111,
-                          -0.014,
-                          -0.017,
-                          -0.108,
-                          0.011,
-                          -0.004,
-                          0.032,
-                          0.011])
-        self.assertEqual([round(x.information, 3)
-                          for x in self.metrics_06.six_month_periods],
-                         [-0.013,
-                          -0.014,
-                          -0.003,
-                          -0.002,
-                          -0.011,
-                          -0.041,
-                          0.011])
-        self.assertEqual([round(x.information, 3)
-                          for x in self.metrics_06.year_periods],
-                         [-0.001])
+        np.testing.assert_almost_equal(
+            [x.information for x in self.metrics_06.month_periods],
+            ANSWER_KEY.ALGORITHM_PERIOD_INFORMATION['Monthly'],
+            decimal=4)
+        np.testing.assert_almost_equal(
+            [x.information for x in self.metrics_06.three_month_periods],
+            ANSWER_KEY.ALGORITHM_PERIOD_INFORMATION['3-Month'],
+            decimal=4)
+        np.testing.assert_almost_equal(
+            [x.information for x in self.metrics_06.six_month_periods],
+            ANSWER_KEY.ALGORITHM_PERIOD_INFORMATION['6-month'],
+            decimal=4)
+        np.testing.assert_almost_equal(
+            [x.information for x in self.metrics_06.year_periods],
+            ANSWER_KEY.ALGORITHM_PERIOD_INFORMATION['year'],
+            decimal=4)
 
     def test_algorithm_beta_06(self):
         np.testing.assert_almost_equal(
@@ -638,18 +609,3 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
             )
             self.assert_month(start_date.month, col[-1].end_date.month)
             self.assert_last_day(col[-1].end_date)
-
-    def test_sparse_benchmark(self):
-        benchmark_returns = self.benchmark_returns_06.copy()
-        # Set every other day to nan.
-        benchmark_returns.iloc[::2] = np.nan
-
-        report = risk.RiskReport(
-            self.algo_returns_06,
-            self.sim_params,
-            benchmark_returns=benchmark_returns,
-            trading_schedule=self.trading_schedule,
-            treasury_curves=self.env.treasury_curves,
-        )
-        for risk_period in chain.from_iterable(itervalues(report.to_dict())):
-            self.assertIsNone(risk_period['beta'])

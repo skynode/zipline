@@ -18,55 +18,30 @@ import logbook
 import math
 import numpy as np
 
-import zipline.utils.math_utils as zp_math
-
 import pandas as pd
 from pandas.tseries.tools import normalize_date
 
 from six import iteritems
 
 from . risk import (
-    alpha,
     check_entry,
-    choose_treasury,
-    downside_risk,
-    sortino_ratio,
+    choose_treasury
 )
 
-from qrisk import sharpe_ratio
+from qrisk import (
+    alpha,
+    beta,
+    downside_risk,
+    information_ratio,
+    sharpe_ratio,
+    sortino_ratio
+)
 
 log = logbook.Logger('Risk Cumulative')
 
 
 choose_treasury = functools.partial(choose_treasury, lambda *args: '10year',
                                     compound=False)
-
-
-def information_ratio(algo_volatility, algorithm_return, benchmark_return):
-    """
-    http://en.wikipedia.org/wiki/Information_ratio
-
-    Args:
-        algorithm_returns (np.array-like):
-            All returns during algorithm lifetime.
-        benchmark_returns (np.array-like):
-            All benchmark returns during algo lifetime.
-
-    Returns:
-        float. Information ratio.
-    """
-    if zp_math.tolerant_equals(algo_volatility, 0):
-        return np.nan
-
-    # The square of the annualization factor is in the volatility,
-    # because the volatility is also annualized,
-    # i.e. the sqrt(annual factor) is in the volatility's numerator.
-    # So to have the the correct annualization factor for the
-    # Sharpe value's numerator, which should be the sqrt(annual factor).
-    # The square of the sqrt of the annual factor, i.e. the annual factor
-    # itself, is needed in the numerator to factor out the division by
-    # its square root.
-    return (algorithm_return - benchmark_return) / algo_volatility
 
 
 class RiskMetricsCumulative(object):
@@ -390,35 +365,43 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
         """
         return sharpe_ratio(
             self.algorithm_returns,
-            self.benchmark_returns)
+            self.benchmark_returns
+        )
 
     def calculate_sortino(self):
         """
         http://en.wikipedia.org/wiki/Sortino_ratio
         """
         return sortino_ratio(
-            self.annualized_mean_returns_cont[self.latest_dt_loc],
-            self.daily_treasury[self.latest_dt.date()],
-            self.downside_risk[self.latest_dt_loc])
+            self.algorithm_returns,
+            self.benchmark_returns
+        )
 
     def calculate_information(self):
         """
         http://en.wikipedia.org/wiki/Information_ratio
         """
         return information_ratio(
-            self.algorithm_volatility[self.latest_dt_loc],
-            self.annualized_mean_returns_cont[self.latest_dt_loc],
-            self.annualized_mean_benchmark_returns_cont[self.latest_dt_loc])
+            self.algorithm_returns,
+            self.benchmark_returns
+        )
 
     def calculate_alpha(self):
         """
         http://en.wikipedia.org/wiki/Alpha_(investment)
         """
+        if isinstance(self.algorithm_returns, np.ndarray):
+            algorithm_returns = pd.Series(self.algorithm_returns)
+        else:
+            algorithm_returns = self.algorithm_returns
+        if isinstance(self.benchmark_returns, np.ndarray):
+            benchmark_returns = pd.Series(self.benchmark_returns)
+        else:
+            benchmark_returns = self.benchmark_returns
         return alpha(
-            self.annualized_mean_returns_cont[self.latest_dt_loc],
-            self.treasury_period_return,
-            self.annualized_mean_benchmark_returns_cont[self.latest_dt_loc],
-            self.beta[self.latest_dt_loc])
+            algorithm_returns,
+            benchmark_returns
+        )
 
     def calculate_volatility(self, daily_returns):
         if len(daily_returns) <= 1:
@@ -426,29 +409,24 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
         return np.std(daily_returns, ddof=1) * math.sqrt(252)
 
     def calculate_downside_risk(self):
-        return downside_risk(self.algorithm_returns,
-                             self.mean_returns,
-                             252)
+        return downside_risk(
+            self.algorithm_returns,
+            self.benchmark_returns
+        )
 
     def calculate_beta(self):
         """
-
-        .. math::
-
-            \\beta_a = \\frac{\mathrm{Cov}(r_a,r_p)}{\mathrm{Var}(r_p)}
-
         http://en.wikipedia.org/wiki/Beta_(finance)
         """
-        # it doesn't make much sense to calculate beta for less than two
-        # values, so return none.
-        if len(self.algorithm_returns) < 2:
-            return 0.0
-
-        returns_matrix = np.vstack([self.algorithm_returns,
-                                    self.benchmark_returns])
-        C = np.cov(returns_matrix, ddof=1)
-        algorithm_covariance = C[0][1]
-        benchmark_variance = C[1][1]
-        beta = algorithm_covariance / benchmark_variance
-
-        return beta
+        if isinstance(self.algorithm_returns, np.ndarray):
+            algorithm_returns = pd.Series(self.algorithm_returns)
+        else:
+            algorithm_returns = self.algorithm_returns
+        if isinstance(self.benchmark_returns, np.ndarray):
+            benchmark_returns = pd.Series(self.benchmark_returns)
+        else:
+            benchmark_returns = self.benchmark_returns
+        return beta(
+            algorithm_returns,
+            benchmark_returns
+        )
