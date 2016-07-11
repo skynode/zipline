@@ -5,7 +5,8 @@ from collections import namedtuple, MutableMapping
 import errno
 import os
 import pickle
-from shutil import rmtree, copyfile, copytree
+from distutils import dir_util
+from shutil import rmtree, move
 from tempfile import mkdtemp, NamedTemporaryFile
 
 import pandas as pd
@@ -276,6 +277,7 @@ class working_file(object):
     """
     def __init__(self, final_path, *args, **kwargs):
         self._tmpfile = NamedTemporaryFile(delete=False, *args, **kwargs)
+        self._name = self._tmpfile.name
         self._final_path = final_path
 
     @property
@@ -289,7 +291,7 @@ class working_file(object):
         """Sync the temporary file to the final path.
         """
         self._tmpfile.close()
-        copyfile(self.name, self._final_path)
+        move(self._name, self._final_path)
 
     def __getattr__(self, attr):
         return getattr(self._tmpfile, attr)
@@ -299,11 +301,25 @@ class working_file(object):
         return self
 
     def __exit__(self, *exc_info):
+        self._tmpfile.__exit__(*exc_info)
         if exc_info[0] is None:
             self._commit()
-        self._tmpfile.__exit__(*exc_info)
-        self._tmpfile.close()
-        os.unlink(self._tmpfile)
+
+    @property
+    def tmpfile(self):
+        return self._tmpfile
+
+    @tmpfile.setter
+    def tmpfile(self, value):
+        self._tmpfile = value
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
 
 
 class working_dir(object):
@@ -336,7 +352,11 @@ class working_dir(object):
             The parts of the path after the working directory.
         """
         path = self.getpath(*path_parts)
-        os.mkdir(path)
+        try: 
+            os.makedirs(path)
+        except OSError:
+            if not os.path.isdir(path):
+                raise
         return path
 
     def getpath(self, *path_parts):
@@ -352,7 +372,7 @@ class working_dir(object):
     def _commit(self):
         """Sync the temporary directory to the final path.
         """
-        copytree(self.path, self._final_path)
+        dir_util.copy_tree(self.path, self._final_path, verbose=1)
 
     def __enter__(self):
         return self

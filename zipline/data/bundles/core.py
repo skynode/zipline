@@ -22,7 +22,6 @@ from ..minute_bars import (
 from zipline.assets import AssetDBWriter, AssetFinder, ASSET_DB_VERSION
 from zipline.utils.cache import (
     dataframe_cache,
-    working_file,
     working_dir,
 )
 from zipline.utils.compat import mappingproxy
@@ -38,37 +37,57 @@ open_and_closes = nyse_cal.schedule
 
 def asset_db_path(bundle_name, timestr, environ=None):
     return pth.data_path(
-        [bundle_name, timestr, 'assets-%d.sqlite' % ASSET_DB_VERSION],
-        environ=environ,
+        list(asset_db_relative(bundle_name, timestr, environ)),
+        environ=environ
     )
 
 
 def minute_equity_path(bundle_name, timestr, environ=None):
     return pth.data_path(
-        [bundle_name, timestr, 'minute_equities.bcolz'],
+        list(minute_equity_relative(bundle_name, timestr, environ)),
         environ=environ,
     )
 
 
 def daily_equity_path(bundle_name, timestr, environ=None):
     return pth.data_path(
-        [bundle_name, timestr, 'daily_equities.bcolz'],
+        list(daily_equity_relative(bundle_name, timestr, environ)),
         environ=environ,
     )
 
 
 def adjustment_db_path(bundle_name, timestr, environ=None):
     return pth.data_path(
-        [bundle_name, timestr, 'adjustments.sqlite'],
+        list(adjustment_db_relative(bundle_name, timestr, environ)),
         environ=environ,
     )
 
 
 def cache_path(bundle_name, environ=None):
     return pth.data_path(
-        [bundle_name, '.cache'],
+        list(cache_relative(bundle_name, environ)),
         environ=environ,
     )
+
+
+def adjustment_db_relative(bundle_name, timestr, environ=None):
+    return bundle_name, timestr, 'adjustments.sqlite'
+
+
+def cache_relative(bundle_name, timestr, environ=None):
+    return bundle_name, '.cache'
+
+
+def daily_equity_relative(bundle_name, timestr, environ=None):
+    return bundle_name, timestr, 'daily_equities.bcolz'
+
+
+def minute_equity_relative(bundle_name, timestr, environ=None):
+    return bundle_name, timestr, 'minute_equities.bcolz'
+
+
+def asset_db_relative(bundle_name, timestr, environ=None):
+    return bundle_name, timestr, 'assets-%d.sqlite' % ASSET_DB_VERSION
 
 
 def to_bundle_ingest_dirname(ts):
@@ -320,55 +339,54 @@ def _make_bundle_core():
         cachepath = cache_path(name, environ=environ)
         pth.ensure_directory(pth.data_path([name, timestr], environ=environ))
         pth.ensure_directory(cachepath)
-
         with dataframe_cache(cachepath, clean_on_failure=False) as cache, \
                 ExitStack() as stack:
             # we use `cleanup_on_failure=False` so that we don't purge the
             # cache directory if the load fails in the middle
-
+            
             if bundle.create_writers:
-                daily_bars_path = stack.enter_context(working_dir(
-                    daily_equity_path(name, timestr, environ=environ),
-                )).path
+                wd = stack.enter_context(working_dir(
+                    pth.data_path([], environ=environ))
+                )
+                daily_bars_path = wd.mkdir(*daily_equity_relative(
+                    name, timestr, environ=environ)
+                )
                 daily_bar_writer = BcolzDailyBarWriter(
                     daily_bars_path,
-                    bundle.calendar,
-                )
+                    bundle.calendar)
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
+
                 daily_bar_writer.write(())
                 minute_bar_writer = BcolzMinuteBarWriter(
                     bundle.calendar[0],
-                    stack.enter_context(working_dir(
-                        minute_equity_path(name, timestr, environ=environ),
-                    )).path,
+                    wd.mkdir(*minute_equity_relative(
+                        name, timestr, environ=environ)
+                    ),
                     bundle.opens,
                     bundle.closes,
                     minutes_per_day=bundle.minutes_per_day,
                 )
-                asset_db_writer = AssetDBWriter(
-                    stack.enter_context(working_file(
-                        asset_db_path(name, timestr, environ=environ),
-                    )).path,
-                )
-                wf = stack.enter_context(working_file(
-                    adjustment_db_path(name, timestr, environ=environ),
-                ))
-                wf.close()  # we need to close the file to delete it on windows
-                adjustment_db_writer = SQLiteAdjustmentWriter(
-                    wf.path,
+                asset_db_writer = stack.enter_context(
+                    AssetDBWriter(
+                        wd.getpath(*asset_db_relative(
+                        name, timestr, environ=environ)
+                        )))
+                adjustment_db_writer = stack.enter_context(
+                    SQLiteAdjustmentWriter(
+                    wd.getpath(*adjustment_db_relative(
+                    name, timestr, environ=environ)),
                     BcolzDailyBarReader(daily_bars_path),
                     bundle.calendar,
                     overwrite=True,
-                )
+                ))
             else:
                 daily_bar_writer = None
                 minute_bar_writer = None
                 asset_db_writer = None
                 adjustment_db_writer = None
-
             bundle.ingest(
                 environ,
                 asset_db_writer,
@@ -380,6 +398,7 @@ def _make_bundle_core():
                 show_progress,
                 pth.data_path([name, timestr], environ=environ),
             )
+            
 
     def most_recent_data(bundle_name, timestamp, environ=None):
         """Get the path to the most recent data after ``date``for the
@@ -454,6 +473,7 @@ def _make_bundle_core():
             adjustment_reader=SQLiteAdjustmentReader(
                 adjustment_db_path(name, timestr, environ=environ),
             ),
+            
         )
 
     @preprocess(
@@ -537,6 +557,5 @@ def _make_bundle_core():
         return cleaned
 
     return BundleCore(bundles, register, unregister, ingest, load, clean)
-
 
 bundles, register, unregister, ingest, load, clean = _make_bundle_core()

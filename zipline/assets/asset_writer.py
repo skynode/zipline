@@ -346,7 +346,7 @@ class AssetDBWriter(object):
         --------
         zipline.assets.asset_finder
         """
-
+        print self.engine
         with self.engine.begin() as txn:
             # Create SQL tables if they do not exist.
             metadata = self.init_db(txn)
@@ -358,7 +358,6 @@ class AssetDBWriter(object):
                 exchanges if exchanges is not None else pd.DataFrame(),
                 root_symbols if root_symbols is not None else pd.DataFrame(),
             )
-
             # Write the data to SQL.
             self._write_df_to_table(
                 metadata.tables['futures_exchanges'],
@@ -468,7 +467,6 @@ class AssetDBWriter(object):
                 check_version_info(version_info, ASSET_DB_VERSION)
             else:
                 write_version_info(version_info, ASSET_DB_VERSION)
-
             return metadata
 
     def _normalize_equities(self, equities):
@@ -563,3 +561,8 @@ class AssetDBWriter(object):
             exchanges=exchanges_output,
             root_symbols=root_symbols_output,
         )
+    def __enter__(self):
+      return self
+    def __exit__(self, *exc_info):
+      pass
+
