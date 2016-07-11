@@ -98,8 +98,8 @@ class RiskMetricsPeriod(object):
             raise Exception(message)
 
         self.num_trading_days = len(self.benchmark_returns)
-        self.trading_day_counts = self.algorithm_returns.rolling(
-            self.num_trading_days).count()
+        self.trading_day_counts = pd.stats.moments.rolling_count(
+            self.algorithm_returns, self.num_trading_days)
 
         self.mean_algorithm_returns = \
             self.algorithm_returns.cumsum() / self.trading_day_counts
