@@ -15,7 +15,6 @@
 
 import functools
 import logbook
-import math
 import numpy as np
 
 import pandas as pd
@@ -30,9 +29,12 @@ from . risk import (
 
 from qrisk import (
     alpha,
+    annual_volatility,
     beta,
+    cum_returns,
     downside_risk,
     information_ratio,
+    max_drawdown,
     sharpe_ratio,
     sortino_ratio
 )
@@ -154,6 +156,7 @@ class RiskMetricsCumulative(object):
 
         self.algorithm_returns_cont[dt_loc] = algorithm_returns
         self.algorithm_returns = self.algorithm_returns_cont[:dt_loc + 1]
+        algorithm_returns_series = pd.Series(self.algorithm_returns)
 
         self.num_trading_days = len(self.algorithm_returns)
 
@@ -161,8 +164,9 @@ class RiskMetricsCumulative(object):
             if len(self.algorithm_returns) == 1:
                 self.algorithm_returns = np.append(0.0, self.algorithm_returns)
 
-        self.algorithm_cumulative_returns[dt_loc] = \
-            self.calculate_cumulative_returns(self.algorithm_returns)
+        self.algorithm_cumulative_returns[dt_loc] = cum_returns(
+            algorithm_returns_series
+        ).iloc[-1]
 
         algo_cumulative_returns_to_date = \
             self.algorithm_cumulative_returns[:dt_loc + 1]
@@ -186,13 +190,14 @@ class RiskMetricsCumulative(object):
 
         self.benchmark_returns_cont[dt_loc] = benchmark_returns
         self.benchmark_returns = self.benchmark_returns_cont[:dt_loc + 1]
-
+        benchmark_returns_series = pd.Series(self.benchmark_returns)
         if self.create_first_day_stats:
             if len(self.benchmark_returns) == 1:
                 self.benchmark_returns = np.append(0.0, self.benchmark_returns)
 
-        self.benchmark_cumulative_returns[dt_loc] = \
-            self.calculate_cumulative_returns(self.benchmark_returns)
+        self.benchmark_cumulative_returns[dt_loc] = cum_returns(
+            benchmark_returns_series
+        ).iloc[-1]
 
         benchmark_cumulative_returns_to_date = \
             self.benchmark_cumulative_returns[:dt_loc + 1]
@@ -232,10 +237,12 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
             raise Exception(message)
 
         self.update_current_max()
-        self.benchmark_volatility[dt_loc] = \
-            self.calculate_volatility(self.benchmark_returns)
-        self.algorithm_volatility[dt_loc] = \
-            self.calculate_volatility(self.algorithm_returns)
+        self.benchmark_volatility[dt_loc] = annual_volatility(
+            benchmark_returns_series
+        )
+        self.algorithm_volatility[dt_loc] = annual_volatility(
+            algorithm_returns_series
+        )
 
         # caching the treasury rates for the minutely case is a
         # big speedup, because it avoids searching the treasury
@@ -254,14 +261,33 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
         self.excess_returns[dt_loc] = (
             self.algorithm_cumulative_returns[dt_loc] -
             self.treasury_period_return)
-        self.beta[dt_loc] = self.calculate_beta()
-        self.alpha[dt_loc] = self.calculate_alpha()
-        self.sharpe[dt_loc] = self.calculate_sharpe()
-        self.downside_risk[dt_loc] = \
-            self.calculate_downside_risk()
-        self.sortino[dt_loc] = self.calculate_sortino()
-        self.information[dt_loc] = self.calculate_information()
-        self.max_drawdown = self.calculate_max_drawdown()
+        self.beta[dt_loc] = beta(
+            algorithm_returns_series,
+            benchmark_returns_series
+        )
+        self.alpha[dt_loc] = alpha(
+            algorithm_returns_series,
+            benchmark_returns_series
+        )
+        self.sharpe[dt_loc] = sharpe_ratio(
+            algorithm_returns_series,
+            benchmark_returns_series
+        )
+        self.downside_risk[dt_loc] = downside_risk(
+            algorithm_returns_series,
+            benchmark_returns_series
+        )
+        self.sortino[dt_loc] = sortino_ratio(
+            algorithm_returns_series,
+            benchmark_returns_series
+        )
+        self.information[dt_loc] = information_ratio(
+            algorithm_returns_series,
+            benchmark_returns_series
+        )
+        self.max_drawdown = max_drawdown(
+            algorithm_returns_series
+        )
         self.max_drawdowns[dt_loc] = self.max_drawdown
         self.max_leverage = self.calculate_max_leverage()
         self.max_leverages[dt_loc] = self.max_leverage
@@ -316,9 +342,6 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
 
         return '\n'.join(statements)
 
-    def calculate_cumulative_returns(self, returns):
-        return (1. + returns).prod() - 1
-
     def update_current_max(self):
         if len(self.algorithm_cumulative_returns) == 0:
             return
@@ -326,29 +349,6 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
             self.algorithm_cumulative_returns[self.latest_dt_loc]
         if self.current_max < current_cumulative_return:
             self.current_max = current_cumulative_return
-
-    def calculate_max_drawdown(self):
-        if len(self.algorithm_cumulative_returns) == 0:
-            return self.max_drawdown
-
-        # The drawdown is defined as: (high - low) / high
-        # The above factors out to: 1.0 - (low / high)
-        #
-        # Instead of explicitly always using the low, use the current total
-        # return value, and test that against the max drawdown, which will
-        # exceed the previous max_drawdown iff the current return is lower than
-        # the previous low in the current drawdown window.
-        cur_drawdown = 1.0 - (
-            (1.0 + self.algorithm_cumulative_returns[self.latest_dt_loc])
-            /
-            (1.0 + self.current_max))
-
-        self.drawdowns[self.latest_dt_loc] = cur_drawdown
-
-        if self.max_drawdown < cur_drawdown:
-            return cur_drawdown
-        else:
-            return self.max_drawdown
 
     def calculate_max_leverage(self):
         # The leverage is defined as: the gross_exposure/net_liquidation
@@ -358,75 +358,3 @@ algorithm_returns ({algo_count}) in range {start} : {end} on {dt}"
             self.latest_dt_loc]
 
         return max(cur_leverage, self.max_leverage)
-
-    def calculate_sharpe(self):
-        """
-        http://en.wikipedia.org/wiki/Sharpe_ratio
-        """
-        return sharpe_ratio(
-            self.algorithm_returns,
-            self.benchmark_returns
-        )
-
-    def calculate_sortino(self):
-        """
-        http://en.wikipedia.org/wiki/Sortino_ratio
-        """
-        return sortino_ratio(
-            self.algorithm_returns,
-            self.benchmark_returns
-        )
-
-    def calculate_information(self):
-        """
-        http://en.wikipedia.org/wiki/Information_ratio
-        """
-        return information_ratio(
-            self.algorithm_returns,
-            self.benchmark_returns
-        )
-
-    def calculate_alpha(self):
-        """
-        http://en.wikipedia.org/wiki/Alpha_(investment)
-        """
-        if isinstance(self.algorithm_returns, np.ndarray):
-            algorithm_returns = pd.Series(self.algorithm_returns)
-        else:
-            algorithm_returns = self.algorithm_returns
-        if isinstance(self.benchmark_returns, np.ndarray):
-            benchmark_returns = pd.Series(self.benchmark_returns)
-        else:
-            benchmark_returns = self.benchmark_returns
-        return alpha(
-            algorithm_returns,
-            benchmark_returns
-        )
-
-    def calculate_volatility(self, daily_returns):
-        if len(daily_returns) <= 1:
-            return 0.0
-        return np.std(daily_returns, ddof=1) * math.sqrt(252)
-
-    def calculate_downside_risk(self):
-        return downside_risk(
-            self.algorithm_returns,
-            self.benchmark_returns
-        )
-
-    def calculate_beta(self):
-        """
-        http://en.wikipedia.org/wiki/Beta_(finance)
-        """
-        if isinstance(self.algorithm_returns, np.ndarray):
-            algorithm_returns = pd.Series(self.algorithm_returns)
-        else:
-            algorithm_returns = self.algorithm_returns
-        if isinstance(self.benchmark_returns, np.ndarray):
-            benchmark_returns = pd.Series(self.benchmark_returns)
-        else:
-            benchmark_returns = self.benchmark_returns
-        return beta(
-            algorithm_returns,
-            benchmark_returns
-        )
