@@ -19,7 +19,6 @@ pip-log.txt
 test.log
 .noseids
 *.xlsx
-!risk-answer-key.xlsx
 
 # Compiled python files
 *.py[co]
