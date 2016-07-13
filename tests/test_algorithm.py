@@ -2023,14 +2023,18 @@ class TestCapitalChanges(WithLogger,
             index=pd.DatetimeIndex(days),
         )
 
-    def test_capital_changes_daily_mode(self):
+    @parameterized.expand([
+        ('target', 151000.0), ('delta', 50000.0)
+    ])
+    def test_capital_changes_daily_mode(self, type, value):
         sim_params = factory.create_simulation_parameters(
             start=pd.Timestamp('2006-01-03', tz='UTC'),
             end=pd.Timestamp('2006-01-09', tz='UTC')
         )
 
         capital_changes = {
-            pd.Timestamp('2006-01-06', tz='UTC'): 50000
+            pd.Timestamp('2006-01-06', tz='UTC'):
+                {'type': type, 'value': value}
         }
 
         algocode = """
@@ -2157,8 +2161,17 @@ def order_stuff(context, data):
                 expected_cumulative[stat]
             )
 
-    @parameterized.expand([('interday',), ('intraday',)])
-    def test_capital_changes_minute_mode_daily_emission(self, change):
+    @parameterized.expand([
+        ('interday_target', [('2006-01-04', 2388.0)]),
+        ('interday_delta', [('2006-01-04', 1000.0)]),
+        ('intraday_target', [('2006-01-04 17:00', 2184.0),
+                             ('2006-01-04 18:00', 2804.0)]),
+        ('intraday_delta', [('2006-01-04 17:00', 500.0),
+                            ('2006-01-04 18:00', 500.0)]),
+    ])
+    def test_capital_changes_minute_mode_daily_emission(self, change, values):
+        change_loc, change_type = change.split('_')
+
         sim_params = factory.create_simulation_parameters(
             start=pd.Timestamp('2006-01-03', tz='UTC'),
             end=pd.Timestamp('2006-01-05', tz='UTC'),
@@ -2166,13 +2179,8 @@ def order_stuff(context, data):
             capital_base=1000.0
         )
 
-        if change == 'intraday':
-            capital_changes = {
-                pd.Timestamp('2006-01-04 17:00', tz='UTC'): 500.0,
-                pd.Timestamp('2006-01-04 18:00', tz='UTC'): 500.0,
-            }
-        else:
-            capital_changes = {pd.Timestamp('2006-01-04', tz='UTC'): 1000.0}
+        capital_changes = {pd.Timestamp(val[0], tz='UTC'): {
+            'type': change_type, 'value': val[1]} for val in values}
 
         algocode = """
 from zipline.api import set_slippage, set_commission, slippage, commission, \
@@ -2214,7 +2222,7 @@ def order_stuff(context, data):
             0.0, 1000.0, 0.0
         ])
 
-        if change == 'intraday':
+        if change_loc == 'intraday':
             # Fills at 491, +500 capital change comes at 638 (17:00) and
             # 698 (18:00), ends day at 879
             day2_return = (1388.0 + 149.0 + 147.0)/1388.0 * \
@@ -2251,7 +2259,7 @@ def order_stuff(context, data):
             expected_daily['ending_cash'] - \
             expected_daily['capital_used']
 
-        if change == 'intraday':
+        if change_loc == 'intraday':
             # Capital changes come after day start
             expected_daily['starting_cash'] -= expected_capital_changes
 
@@ -2296,8 +2304,17 @@ def order_stuff(context, data):
                 expected_cumulative[stat]
             )
 
-    @parameterized.expand([('interday',), ('intraday',)])
-    def test_capital_changes_minute_mode_minute_emission(self, change):
+    @parameterized.expand([
+        ('interday_target', [('2006-01-04', 2388.0)]),
+        ('interday_delta', [('2006-01-04', 1000.0)]),
+        ('intraday_target', [('2006-01-04 17:00', 2184.0),
+                             ('2006-01-04 18:00', 2804.0)]),
+        ('intraday_delta', [('2006-01-04 17:00', 500.0),
+                            ('2006-01-04 18:00', 500.0)]),
+    ])
+    def test_capital_changes_minute_mode_minute_emission(self, change, values):
+        change_loc, change_type = change.split('_')
+
         sim_params = factory.create_simulation_parameters(
             start=pd.Timestamp('2006-01-03', tz='UTC'),
             end=pd.Timestamp('2006-01-05', tz='UTC'),
@@ -2306,13 +2323,8 @@ def order_stuff(context, data):
             capital_base=1000.0
         )
 
-        if change == 'intraday':
-            capital_changes = {
-                pd.Timestamp('2006-01-04 17:00', tz='UTC'): 500.0,
-                pd.Timestamp('2006-01-04 18:00', tz='UTC'): 500.0,
-            }
-        else:
-            capital_changes = {pd.Timestamp('2006-01-04', tz='UTC'): 1000.0}
+        capital_changes = {pd.Timestamp(val[0], tz='UTC'): {
+            'type': change_type, 'value': val[1]} for val in values}
 
         algocode = """
 from zipline.api import set_slippage, set_commission, slippage, commission, \
@@ -2353,7 +2365,7 @@ def order_stuff(context, data):
         expected_minute = {}
 
         capital_changes_after_start = np.array([0.0] * 1170)
-        if change == 'intraday':
+        if change_loc == 'intraday':
             capital_changes_after_start[539:599] = 500.0
             capital_changes_after_start[599:780] = 1000.0
 
@@ -2373,7 +2385,7 @@ def order_stuff(context, data):
         ))
 
         # +1000 capital changes comes before the day start if interday
-        day2adj = 0.0 if change == 'intraday' else 1000.0
+        day2adj = 0.0 if change_loc == 'intraday' else 1000.0
 
         expected_minute['starting_cash'] = np.concatenate((
             [1000.0] * 390,
@@ -2412,7 +2424,7 @@ def order_stuff(context, data):
         # the pnl, starting_value and starting_cash. If the change is intraday,
         # the returns after the change have to be calculated from two
         # subperiods
-        if change == 'intraday':
+        if change_loc == 'intraday':
             # The last packet (at 1/04 16:59) before the first capital change
             prev_subperiod_return = expected_minute['returns'][538]
 
