@@ -12,10 +12,16 @@ Enhancements
   must search for when querying data. The checkpoints should have novel deltas
   applied (:issue:`1276`).
 
+- Updated VagrantFile to include all dev requirements and use a newer image
+  (:issue:`1310`).
+
 Bug Fixes
 ~~~~~~~~~
 
-None
+- Changes :class:`~zipline.pipeline.factors.AverageDollarVolume` built-in
+  factor to treat missing close or volume values as 0. Previously, NaNs were
+  simply discarded before averaging, giving the remaining values too much
+  weight (:issue:`1309`).
 
 Documentation
 ~~~~~~~~~~~~~

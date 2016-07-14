@@ -8,6 +8,11 @@ from .events import (
     BusinessDaysSincePreviousEvent,
     BusinessDaysUntilNextEvent,
 )
+from .statistical import (
+    RollingLinearRegressionOfReturns,
+    RollingPearsonOfReturns,
+    RollingSpearmanOfReturns,
+)
 from .technical import (
     Aroon,
     AverageDollarVolume,
@@ -17,11 +22,11 @@ from .technical import (
     ExponentialWeightedMovingAverage,
     ExponentialWeightedMovingStdDev,
     FastStochasticOscillator,
+    IchimokuKinkoHyo,
+    LinearWeightedMovingAverage,
     MaxDrawdown,
+    RateOfChangePercentage,
     Returns,
-    RollingLinearRegressionOfReturns,
-    RollingPearsonOfReturns,
-    RollingSpearmanOfReturns,
     RSI,
     SimpleMovingAverage,
     VWAP,
@@ -41,8 +46,11 @@ __all__ = [
     'ExponentialWeightedMovingStdDev',
     'Factor',
     'FastStochasticOscillator',
+    'IchimokuKinkoHyo',
     'Latest',
+    'LinearWeightedMovingAverage',
     'MaxDrawdown',
+    'RateOfChangePercentage',
     'RecarrayField',
     'Returns',
     'RollingLinearRegressionOfReturns',

@@ -1,5 +1,5 @@
 #
-# Copyright 2013 Quantopian, Inc.
+# Copyright 2016 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 
 import datetime
 import calendar
+import pandas as pd
 import numpy as np
 import pytz
 import pandas as pd
@@ -354,9 +355,10 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
             DECIMAL_PLACES)
 
     def test_treasury_returns(self):
+
         returns = factory.create_returns_from_range(self.sim_params)
         metrics = risk.RiskReport(returns, self.sim_params,
-                                  trading_schedule=self.trading_schedule,
+                                  trading_calendar=self.trading_calendar,
                                   treasury_curves=self.env.treasury_curves,
                                   benchmark_returns=self.env.benchmark_returns)
         self.assertEqual([round(x.treasury_period_return, 4)
@@ -411,35 +413,21 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
 
         # 1992 and 1996 were leap years
         total_days = 365 * 5 + 2
-        end = start + datetime.timedelta(days=total_days)
+        end_session = start_session + datetime.timedelta(days=total_days)
         sim_params90s = SimulationParameters(
-            period_start=start,
-            period_end=end,
-            trading_schedule=self.trading_schedule,
+            start_session=start_session,
+            end_session=end_session,
+            trading_calendar=self.trading_calendar,
         )
 
         returns = factory.create_returns_from_range(sim_params90s)
         returns = returns[:-10]  # truncate the returns series to end mid-month
         metrics = risk.RiskReport(returns, sim_params90s,
-                                  trading_schedule=self.trading_schedule,
+                                  trading_calendar=self.trading_calendar,
                                   treasury_curves=self.env.treasury_curves,
                                   benchmark_returns=self.env.benchmark_returns)
         total_months = 60
-        self.check_metrics(metrics, total_months, start)
-
-    def check_year_range(self, start_date, years):
-        sim_params = SimulationParameters(
-            period_start=start_date,
-            period_end=start_date.replace(year=(start_date.year + years)),
-            trading_schedule=self.trading_schedule,
-        )
-        returns = factory.create_returns_from_range(sim_params)
-        metrics = risk.RiskReport(returns, self.sim_params,
-                                  trading_schedule=self.trading_schedule,
-                                  treasury_curves=self.env.treasury_curves,
-                                  benchmark_returns=self.env.benchmark_returns)
-        total_months = years * 12
-        self.check_metrics(metrics, total_months, start_date)
+        self.check_metrics(metrics, total_months, start_session)
 
     def check_metrics(self, metrics, total_months, start_date):
         """
@@ -497,7 +485,7 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
 
     def assert_range_length(self, col, total_months,
                             period_length, start_date):
-        if(period_length > total_months):
+        if (period_length > total_months):
             self.assertEqual(len(col), 0)
         else:
             self.assertEqual(
@@ -509,7 +497,7 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
                 calculated end:{end}".format(total_months=total_months,
                                              period_length=period_length,
                                              start_date=start_date,
-                                             end=col[-1].end_date,
+                                             end=col[-1]._end_session,
                                              actual=len(col))
             )
             self.assert_month(start_date.month, col[-1].end_date.month)

@@ -1,5 +1,5 @@
 #
-# Copyright 2015 Quantopian, Inc.
+# Copyright 2016 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import numpy as np
-import pytz
+import pandas as pd
 import zipline.finance.risk as risk
 from zipline.utils import factory
 import pandas as pd
@@ -35,12 +35,14 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
 
     def init_instance_fixtures(self):
         super(TestRisk, self).init_instance_fixtures()
-        start_date = pd.Timestamp('2006-01-01', tz=pytz.utc)
-        end_date = pd.Timestamp('2006-12-29', tz=pytz.utc)
+
+        start_session = pd.Timestamp("2006-01-01", tz='UTC')
+        end_session = pd.Timestamp("2006-12-29", tz='UTC')
+
         self.sim_params = SimulationParameters(
-            period_start=start_date,
-            period_end=end_date,
-            trading_schedule=self.trading_schedule,
+            start_session=start_session,
+            end_session=end_session,
+            trading_calendar=self.trading_calendar,
         )
         self.algo_returns = factory.create_returns_from_list(
             RETURNS,
@@ -49,7 +51,7 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
         self.cumulative_metrics = risk.RiskMetricsCumulative(
             self.sim_params,
             treasury_curves=self.env.treasury_curves,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
         for dt, returns in self.algo_returns.iteritems():
             self.cumulative_metrics.update(

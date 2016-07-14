@@ -5,6 +5,9 @@ from collections import Counter
 from itertools import product
 from unittest import TestCase
 
+from toolz import assoc
+
+from zipline.assets import Asset
 from zipline.errors import (
     DTypeNotSpecified,
     InvalidOutputName,
@@ -25,11 +28,17 @@ from zipline.pipeline import (
 )
 from zipline.pipeline.data import Column, DataSet
 from zipline.pipeline.data.testing import TestingDataSet
-from zipline.pipeline.factors import RecarrayField
-from zipline.pipeline.term import AssetExists, NotSpecified
 from zipline.pipeline.expression import NUMEXPR_MATH_FUNCS
+from zipline.pipeline.factors import RecarrayField
+from zipline.pipeline.sentinels import NotSpecified
+from zipline.pipeline.term import AssetExists, Slice
 from zipline.testing import parameter_space
-from zipline.testing.predicates import assert_equal, assert_raises
+from zipline.testing.predicates import (
+    assert_equal,
+    assert_raises,
+    assert_raises_regex,
+    assert_regex,
+)
 from zipline.utils.numpy_utils import (
     bool_dtype,
     categorical_dtype,
@@ -94,6 +103,18 @@ class MultipleOutputs(CustomFactor):
 
     def some_method(self):
         return
+
+
+class GenericFilter(Filter):
+    dtype = bool_dtype
+    window_length = 0
+    inputs = []
+
+
+class GenericClassifier(Classifier):
+    dtype = categorical_dtype
+    window_length = 0
+    inputs = []
 
 
 def gen_equivalent_factors():
@@ -268,6 +289,21 @@ class ObjectIdentityTestCase(TestCase):
         self.assertIs(alpha, multiple_outputs.alpha)
         self.assertIs(beta, multiple_outputs.beta)
 
+    def test_instance_caching_of_slices(self):
+        my_asset = Asset(1)
+
+        f = GenericCustomFactor()
+        f_slice = f[my_asset]
+        self.assertIs(f_slice, Slice(GenericCustomFactor(), my_asset))
+
+        f = GenericFilter()
+        f_slice = f[my_asset]
+        self.assertIs(f_slice, Slice(GenericFilter(), my_asset))
+
+        c = GenericClassifier()
+        c_slice = c[my_asset]
+        self.assertIs(c_slice, Slice(GenericClassifier(), my_asset))
+
     def test_instance_non_caching(self):
 
         f = SomeFactor()
@@ -404,10 +440,50 @@ class ObjectIdentityTestCase(TestCase):
 
         with assert_raises(TypeError) as e:
             self.SomeFactorParameterized(a=[], b=[])
-        assert_equal(
+        assert_regex(
             str(e.exception),
-            "SomeFactorParameterized expected a hashable value for parameter"
-            " 'a', but got [] instead.",
+            r"SomeFactorParameterized expected a hashable value for parameter"
+            r" '(a|b)', but got \[\] instead\.",
+        )
+
+    def test_parameterized_term_default_value(self):
+        defaults = {'a': 'default for a', 'b': 'default for b'}
+
+        class F(Factor):
+            params = defaults
+
+            inputs = (SomeDataSet.foo,)
+            dtype = 'f8'
+            window_length = 5
+
+        assert_equal(F().params, defaults)
+        assert_equal(F(a='new a').params, assoc(defaults, 'a', 'new a'))
+        assert_equal(F(b='new b').params, assoc(defaults, 'b', 'new b'))
+        assert_equal(
+            F(a='new a', b='new b').params,
+            {'a': 'new a', 'b': 'new b'},
+        )
+
+    def test_parameterized_term_default_value_with_not_specified(self):
+        defaults = {'a': 'default for a', 'b': NotSpecified}
+
+        class F(Factor):
+            params = defaults
+
+            inputs = (SomeDataSet.foo,)
+            dtype = 'f8'
+            window_length = 5
+
+        pattern = r"F expected a keyword parameter 'b'\."
+        with assert_raises_regex(TypeError, pattern):
+            F()
+        with assert_raises_regex(TypeError, pattern):
+            F(a='new a')
+
+        assert_equal(F(b='new b').params, assoc(defaults, 'b', 'new b'))
+        assert_equal(
+            F(a='new a', b='new b').params,
+            {'a': 'new a', 'b': 'new b'},
         )
 
     def test_bad_input(self):
