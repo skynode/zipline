@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import numpy as np
 import pytz
 import zipline.finance.risk as risk
 from zipline.utils import factory
+import pandas as pd
 
 from zipline.testing.fixtures import WithTradingEnvironment, ZiplineTestCase
 
@@ -35,17 +35,8 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
 
     def init_instance_fixtures(self):
         super(TestRisk, self).init_instance_fixtures()
-        start_date = datetime.datetime(
-            year=2006,
-            month=1,
-            day=1,
-            hour=0,
-            minute=0,
-            tzinfo=pytz.utc
-        )
-        end_date = datetime.datetime(
-            year=2006, month=12, day=29, tzinfo=pytz.utc
-        )
+        start_date = pd.Timestamp('2006-01-01', tz=pytz.utc)
+        end_date = pd.Timestamp('2006-12-29', tz=pytz.utc)
         self.sim_params = SimulationParameters(
             period_start=start_date,
             period_end=end_date,

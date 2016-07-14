@@ -17,6 +17,7 @@ import datetime
 import calendar
 import numpy as np
 import pytz
+import pandas as pd
 
 import zipline.finance.risk as risk
 from zipline.utils import factory
@@ -37,8 +38,8 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
     def init_instance_fixtures(self):
         super(TestRisk, self).init_instance_fixtures()
 
-        self.start_date = datetime.datetime(2006, 1, 1, tzinfo=pytz.utc)
-        self.end_date = datetime.datetime(2006, 12, 31, tzinfo=pytz.utc)
+        self.start_date = pd.Timestamp('2006-01-01', tz=pytz.utc)
+        self.end_date = pd.Timestamp('2006-12-31', tz=pytz.utc)
         self.sim_params = SimulationParameters(
             period_start=self.start_date,
             period_end=self.end_date,
@@ -401,19 +402,12 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
 
     def test_benchmarkrange(self):
         self.check_year_range(
-            datetime.datetime(
-                year=2008, month=1, day=1, tzinfo=pytz.utc),
+            pd.Timestamp('2008-01-01', tz=pytz.utc),
             2)
 
     def test_partial_month(self):
 
-        start = datetime.datetime(
-            year=1991,
-            month=1,
-            day=1,
-            hour=0,
-            minute=0,
-            tzinfo=pytz.utc)
+        start = pd.Timestamp('1991-01-01', tz=pytz.utc)
 
         # 1992 and 1996 were leap years
         total_days = 365 * 5 + 2
