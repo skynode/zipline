@@ -815,10 +815,9 @@ def before_trading_start(context, data):
 
         res2 = algo2.run(self.data_portal)
 
-        # FIXME I think we are getting Nans due to fixed benchmark,
-        # so dropping them for now.
-        res1 = res1.fillna(method='ffill')
-        res2 = res2.fillna(method='ffill')
+        # Fill in np.nan so arrays could be compared
+        res1 = res1.fillna(0)
+        res2 = res2.fillna(0)
 
         np.testing.assert_array_equal(res1, res2)
 

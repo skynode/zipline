@@ -23,9 +23,6 @@ from zipline.testing.fixtures import WithTradingEnvironment, ZiplineTestCase
 
 from zipline.finance.trading import SimulationParameters
 
-from . import answer_key
-ANSWER_KEY = answer_key.ANSWER_KEY
-
 RETURNS_BASE = 0.01
 RETURNS = [RETURNS_BASE] * 251
 
