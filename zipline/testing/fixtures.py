@@ -900,10 +900,6 @@ class WithBcolzEquityMinuteBarReader(WithEquityMinuteBarData, WithTmpDir):
         return cls.tmpdir.makedir(cls.BCOLZ_MINUTE_BAR_PATH)
 
     @classmethod
-    def make_bcolz_minute_bar_rootdir_path(cls):
-        return cls.tmpdir.makedir(cls.BCOLZ_MINUTE_BAR_PATH)
-
-    @classmethod
     def init_class_fixtures(cls):
         super(WithBcolzEquityMinuteBarReader, cls).init_class_fixtures()
         cls.bcolz_minute_bar_path = p = \
@@ -991,10 +987,6 @@ class WithAdjustmentReader(WithBcolzEquityDailyBarReader):
     @classmethod
     def make_adjustment_writer_equity_daily_bar_reader(cls):
         return cls.bcolz_equity_daily_bar_reader
-
-    @classmethod
-    def make_adjustment_db_conn_str(cls):
-        return ':memory:'
 
     @classmethod
     def make_adjustment_db_conn_str(cls):
