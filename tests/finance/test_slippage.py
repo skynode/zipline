@@ -32,7 +32,7 @@ from zipline.finance.blotter import Order
 
 from zipline.data.data_portal import DataPortal
 from zipline.protocol import BarData
-from zipline.testing import tmp_bcolz_minute_bar_reader
+from zipline.testing import tmp_bcolz_equity_minute_bar_reader
 from zipline.testing.fixtures import (
     WithDataPortal,
     WithSimParams,
@@ -57,7 +57,7 @@ class SlippageTestCase(WithSimParams, WithDataPortal, ZiplineTestCase):
     )
 
     @classmethod
-    def make_minute_bar_data(cls):
+    def make_equity_minute_bar_data(cls):
         yield 133, pd.DataFrame(
             {
                 'open': [3.0, 3.0, 3.5, 4.0, 3.5],
@@ -91,10 +91,10 @@ class SlippageTestCase(WithSimParams, WithDataPortal, ZiplineTestCase):
             start=normalize_date(self.minutes[0]),
             end=normalize_date(self.minutes[-1])
         )
-        with tmp_bcolz_minute_bar_reader(self.trading_schedule, days, assets) \
+        with tmp_bcolz_equity_minute_bar_reader(self.trading_calendar, days, assets) \
                 as reader:
             data_portal = DataPortal(
-                self.env.asset_finder, self.trading_schedule,
+                self.env.asset_finder, self.trading_calendar,
                 first_trading_day=reader.first_trading_day,
                 equity_minute_reader=reader,
             )
@@ -481,10 +481,10 @@ class SlippageTestCase(WithSimParams, WithDataPortal, ZiplineTestCase):
             start=normalize_date(self.minutes[0]),
             end=normalize_date(self.minutes[-1])
         )
-        with tmp_bcolz_minute_bar_reader(self.trading_schedule, days, assets) \
+        with tmp_bcolz_equity_minute_bar_reader(self.trading_calendar, days, assets) \
                 as reader:
             data_portal = DataPortal(
-                self.env.asset_finder, self.trading_schedule,
+                self.env.asset_finder, self.trading_calendar,
                 first_trading_day=reader.first_trading_day,
                 equity_minute_reader=reader,
             )

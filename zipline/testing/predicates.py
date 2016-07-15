@@ -1,6 +1,8 @@
+from contextlib import contextmanager
 import datetime
 from functools import partial
 import inspect
+import re
 
 from nose.tools import (  # noqa
     assert_almost_equal,
@@ -39,10 +41,45 @@ from six import iteritems, viewkeys, PY2
 from toolz import dissoc, keyfilter
 import toolz.curried.operator as op
 
+from zipline.testing.core import ensure_doctest
 from zipline.dispatch import dispatch
 from zipline.lib.adjustment import Adjustment
-from zipline.utils.functional import dzip_exact
+from zipline.utils.functional import dzip_exact, instance
 from zipline.utils.math_utils import tolerant_equals
+
+
+@instance
+@ensure_doctest
+class wildcard(object):
+    """An object that compares equal to any other object.
+
+    This is useful when using :func:`~zipline.testing.predicates.assert_equal`
+    with a large recursive structure and some fields to be ignored.
+
+    Examples
+    --------
+    >>> wildcard == 5
+    True
+    >>> wildcard == 'ayy'
+    True
+
+    # reflected
+    >>> 5 == wildcard
+    True
+    >>> 'ayy' == wildcard
+    True
+    """
+    @staticmethod
+    def __eq__(other):
+        return True
+
+    @staticmethod
+    def __ne__(other):
+        return False
+
+    def __repr__(self):
+        return '<%s>' % type(self).__name__
+    __str__ = __repr__
 
 
 def keywords(func):
@@ -168,6 +205,47 @@ def assert_is_subclass(subcls, cls, msg=''):
             msg,
         )
     )
+
+
+def assert_regex(result, expected, msg=''):
+    """Assert that ``expected`` matches the result.
+
+    Parameters
+    ----------
+    result : str
+        The string to search.
+    expected : str or compiled regex
+        The pattern to search for in ``result``.
+    msg : str, optional
+        An extra assertion message to print if this fails.
+    """
+    assert re.search(expected, result), (
+        '%s%r not found in %r' % (_fmt_msg(msg), expected, result)
+    )
+
+
+@contextmanager
+def assert_raises_regex(exc, pattern, msg=''):
+    """Assert that some exception is raised in a context and that the message
+    matches some pattern.
+
+    Parameters
+    ----------
+    exc : type or tuple[type]
+        The exception type or types to expect.
+    pattern : str or compiled regex
+        The pattern to search for in the str of the raised exception.
+    msg : str, optional
+        An extra assertion message to print if this fails.
+    """
+    try:
+        yield
+    except exc as e:
+        assert re.search(pattern, str(e)), (
+            '%s%r not found in %r' % (_fmt_msg(msg), pattern, str(e))
+        )
+    else:
+        raise AssertionError('%s%s was not raised' % (_fmt_msg(msg), exc))
 
 
 @dispatch(object, object)
@@ -377,6 +455,12 @@ def assert_timestamp_and_datetime_equal(result,
         expected,
         path=path,
         **kwargs
+    )
+
+
+def assert_isidentical(result, expected, msg=''):
+    assert result.isidentical(expected), (
+        '%s%s is not identical to %s' % (_fmt_msg(msg), result, expected)
     )
 
 

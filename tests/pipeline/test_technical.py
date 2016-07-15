@@ -1,6 +1,7 @@
 from __future__ import division
 
 from nose_parameterized import parameterized
+from six.moves import range
 import numpy as np
 import pandas as pd
 import talib
@@ -13,7 +14,10 @@ from zipline.pipeline.term import AssetExists
 from zipline.pipeline.factors import (
     BollingerBands,
     Aroon,
-    FastStochasticOscillator
+    FastStochasticOscillator,
+    IchimokuKinkoHyo,
+    LinearWeightedMovingAverage,
+    RateOfChangePercentage,
 )
 from zipline.testing import ExplodingObject, parameter_space
 from zipline.testing.fixtures import WithAssetFinder, ZiplineTestCase
@@ -237,3 +241,175 @@ class TestFastStochasticOscillator(WithTechnicalFactor, ZiplineTestCase):
         )
 
         assert_equal(out, expected_out_k)
+
+
+class IchimokuKinkoHyoTestCase(ZiplineTestCase):
+    def test_ichimoku_kinko_hyo(self):
+        window_length = 52
+        today = pd.Timestamp('2014', tz='utc')
+        nassets = 5
+        assets = pd.Index(np.arange(nassets))
+        days_col = np.arange(window_length)[:, np.newaxis]
+        highs = np.arange(nassets) + 2 + days_col
+        closes = np.arange(nassets) + 1 + days_col
+        lows = np.arange(nassets) + days_col
+
+        tenkan_sen_length = 9
+        kijun_sen_length = 26
+        chikou_span_length = 26
+        ichimoku_kinko_hyo = IchimokuKinkoHyo(
+            window_length=window_length,
+            tenkan_sen_length=tenkan_sen_length,
+            kijun_sen_length=kijun_sen_length,
+            chikou_span_length=chikou_span_length,
+        )
+
+        dtype = [
+            ('tenkan_sen', 'f8'),
+            ('kijun_sen', 'f8'),
+            ('senkou_span_a', 'f8'),
+            ('senkou_span_b', 'f8'),
+            ('chikou_span', 'f8'),
+        ]
+        out = np.recarray(
+            shape=(nassets,),
+            dtype=dtype,
+            buf=np.empty(shape=(nassets,), dtype=dtype),
+        )
+        ichimoku_kinko_hyo.compute(
+            today,
+            assets,
+            out,
+            highs,
+            lows,
+            closes,
+            tenkan_sen_length,
+            kijun_sen_length,
+            chikou_span_length,
+        )
+
+        expected_tenkan_sen = np.array([
+            (53 + 43) / 2,
+            (54 + 44) / 2,
+            (55 + 45) / 2,
+            (56 + 46) / 2,
+            (57 + 47) / 2,
+        ])
+        expected_kijun_sen = np.array([
+            (53 + 26) / 2,
+            (54 + 27) / 2,
+            (55 + 28) / 2,
+            (56 + 29) / 2,
+            (57 + 30) / 2,
+        ])
+        expected_senkou_span_a = (expected_tenkan_sen + expected_kijun_sen) / 2
+        expected_senkou_span_b = np.array([
+            (53 + 0) / 2,
+            (54 + 1) / 2,
+            (55 + 2) / 2,
+            (56 + 3) / 2,
+            (57 + 4) / 2,
+        ])
+        expected_chikou_span = np.array([
+            27.0,
+            28.0,
+            29.0,
+            30.0,
+            31.0,
+        ])
+
+        assert_equal(
+            out.tenkan_sen,
+            expected_tenkan_sen,
+            msg='tenkan_sen',
+        )
+        assert_equal(
+            out.kijun_sen,
+            expected_kijun_sen,
+            msg='kijun_sen',
+        )
+        assert_equal(
+            out.senkou_span_a,
+            expected_senkou_span_a,
+            msg='senkou_span_a',
+        )
+        assert_equal(
+            out.senkou_span_b,
+            expected_senkou_span_b,
+            msg='senkou_span_b',
+        )
+        assert_equal(
+            out.chikou_span,
+            expected_chikou_span,
+            msg='chikou_span',
+        )
+
+    @parameter_space(
+        arg={'tenkan_sen_length', 'kijun_sen_length', 'chikou_span_length'},
+    )
+    def test_input_validation(self, arg):
+        window_length = 52
+
+        with self.assertRaises(ValueError) as e:
+            IchimokuKinkoHyo(**{arg: window_length + 1})
+
+        assert_equal(
+            str(e.exception),
+            '%s must be <= the window_length: 53 > 52' % arg,
+        )
+
+
+class TestRateOfChangePercentage(ZiplineTestCase):
+    @parameterized.expand([
+        ('constant', [2.] * 10, 0.0),
+        ('step', [2.] + [1.] * 9, -50.0),
+        ('linear', [2. + x for x in range(10)], 450.0),
+        ('quadratic', [2. + x**2 for x in range(10)], 4050.0),
+    ])
+    def test_rate_of_change_percentage(self, test_name, data, expected):
+        window_length = len(data)
+
+        rocp = RateOfChangePercentage(
+            inputs=(USEquityPricing.close,),
+            window_length=window_length,
+        )
+        today = pd.Timestamp('2014')
+        assets = np.arange(5, dtype=np.int64)
+        # broadcast data across assets
+        data = np.array(data)[:, np.newaxis] * np.ones(len(assets))
+
+        out = np.zeros(len(assets))
+        rocp.compute(today, assets, out, data)
+        assert_equal(out, np.full((len(assets),), expected))
+
+
+class TestLinearWeightedMovingAverage(ZiplineTestCase):
+    def test_wma1(self):
+        wma1 = LinearWeightedMovingAverage(
+            inputs=(USEquityPricing.close,),
+            window_length=10
+        )
+
+        today = pd.Timestamp('2015')
+        assets = np.arange(5, dtype=np.int64)
+
+        data = np.ones((10, 5))
+        out = np.zeros(data.shape[1])
+
+        wma1.compute(today, assets, out, data)
+        assert_equal(out, np.ones(5))
+
+    def test_wma2(self):
+        wma2 = LinearWeightedMovingAverage(
+            inputs=(USEquityPricing.close,),
+            window_length=10
+        )
+
+        today = pd.Timestamp('2015')
+        assets = np.arange(5, dtype=np.int64)
+
+        data = np.arange(50, dtype=float).reshape((10, 5))
+        out = np.zeros(data.shape[1])
+
+        wma2.compute(today, assets, out, data)
+        assert_equal(out, np.array([30.,  31.,  32.,  33.,  34.]))

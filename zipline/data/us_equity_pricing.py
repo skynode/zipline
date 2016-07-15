@@ -188,7 +188,7 @@ class BcolzDailyBarWriter(object):
     ----------
     filename : str
         The location at which we should write our output.
-    calendar : pandas.DatetimeIndex
+    sessions : pandas.DatetimeIndex
         Calendar to use to compute asset calendar offsets.
 
     See Also
@@ -203,8 +203,9 @@ class BcolzDailyBarWriter(object):
         'volume': float64,
     }
 
-    def __init__(self, filename, calendar):
+    def __init__(self, filename, sessions, calendar):
         self._filename = filename
+        self._sessions = sessions
         self._calendar = calendar
 
     @property
@@ -298,7 +299,7 @@ class BcolzDailyBarWriter(object):
         }
 
         earliest_date = None
-        calendar = self._calendar
+        sessions = self._sessions
 
         if assets is not None:
             @apply
@@ -341,8 +342,10 @@ class BcolzDailyBarWriter(object):
             # in the stored data and the first date of **this** asset. This
             # offset used for output alignment by the reader.
             asset_first_day = table['day'][0]
-            calendar_offset[asset_key] = calendar.get_loc(
-                Timestamp(asset_first_day, unit='s', tz='UTC'),
+            calendar_offset[asset_key] = sessions.get_loc(
+                self._calendar.minute_to_session_label(
+                    Timestamp(asset_first_day, unit='s', tz='UTC')
+                )
             )
 
         # This writes the table to disk.
@@ -362,7 +365,7 @@ class BcolzDailyBarWriter(object):
         full_table.attrs['first_row'] = first_row
         full_table.attrs['last_row'] = last_row
         full_table.attrs['calendar_offset'] = calendar_offset
-        full_table.attrs['calendar'] = calendar.asi8.tolist()
+        full_table.attrs['calendar'] = sessions.asi8.tolist()
         full_table.flush()
         return full_table
 
@@ -793,7 +796,7 @@ class SQLiteAdjustmentWriter(object):
     ----------
     conn_or_path : str or sqlite3.Connection
         A handle to the target sqlite database.
-    daily_bar_reader : BcolzDailyBarReader
+    equity_daily_bar_reader : BcolzDailyBarReader
         Daily bar reader to use for dividend writes.
     overwrite : bool, optional, default=False
         If True and conn_or_path is a string, remove any existing files at the
@@ -806,7 +809,7 @@ class SQLiteAdjustmentWriter(object):
 
     def __init__(self,
                  conn_or_path,
-                 daily_bar_reader,
+                 equity_daily_bar_reader,
                  calendar,
                  overwrite=False):
         if isinstance(conn_or_path, sqlite3.Connection):
@@ -823,7 +826,7 @@ class SQLiteAdjustmentWriter(object):
         else:
             raise TypeError("Unknown connection type %s" % type(conn_or_path))
 
-        self._daily_bar_reader = daily_bar_reader
+        self._equity_daily_bar_reader = equity_daily_bar_reader
         self._calendar = calendar
 
     def _write(self, tablename, expected_dtypes, frame):
@@ -929,7 +932,7 @@ class SQLiteAdjustmentWriter(object):
 
         ratios = full(len(amounts), nan)
 
-        daily_bar_reader = self._daily_bar_reader
+        equity_daily_bar_reader = self._equity_daily_bar_reader
 
         effective_dates = full(len(amounts), -1, dtype=int64)
         calendar = self._calendar
@@ -939,7 +942,7 @@ class SQLiteAdjustmentWriter(object):
             day_loc = calendar.get_loc(ex_date, method='bfill')
             prev_close_date = calendar[day_loc - 1]
             try:
-                prev_close = daily_bar_reader.spot_price(
+                prev_close = equity_daily_bar_reader.spot_price(
                     sid, prev_close_date, 'close')
                 if prev_close != 0.0:
                     ratio = 1.0 - amount / prev_close

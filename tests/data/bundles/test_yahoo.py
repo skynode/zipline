@@ -20,7 +20,7 @@ class YahooBundleTestCase(WithResponses, ZiplineTestCase):
     columns = 'open', 'high', 'low', 'close', 'volume'
     asset_start = pd.Timestamp('2014-01-02', tz='utc')
     asset_end = pd.Timestamp('2014-12-31', tz='utc')
-    trading_days = get_calendar('NYSE').all_trading_days
+    trading_days = get_calendar('NYSE').all_sessions
     calendar = trading_days[
         (trading_days >= asset_start) &
         (trading_days <= asset_end)
@@ -181,7 +181,7 @@ class YahooBundleTestCase(WithResponses, ZiplineTestCase):
             assert_equal(equity.start_date, self.asset_start, msg=equity)
             assert_equal(equity.end_date, self.asset_end, msg=equity)
 
-        actual = bundle.daily_bar_reader.load_raw_arrays(
+        actual = bundle.equity_daily_bar_reader.load_raw_arrays(
             self.columns,
             cal[cal.get_loc(self.asset_start, 'bfill')],
             cal[cal.get_loc(self.asset_end, 'ffill')],
