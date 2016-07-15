@@ -346,7 +346,6 @@ class AssetDBWriter(object):
         --------
         zipline.assets.asset_finder
         """
-        print self.engine
         with self.engine.begin() as txn:
             # Create SQL tables if they do not exist.
             metadata = self.init_db(txn)
@@ -561,8 +560,9 @@ class AssetDBWriter(object):
             exchanges=exchanges_output,
             root_symbols=root_symbols_output,
         )
-    def __enter__(self):
-      return self
-    def __exit__(self, *exc_info):
-      pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        pass

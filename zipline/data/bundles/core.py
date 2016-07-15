@@ -343,8 +343,7 @@ def _make_bundle_core():
         with dataframe_cache(cachepath, clean_on_failure=False) as cache, \
                 ExitStack() as stack:
             # we use `cleanup_on_failure=False` so that we don't purge the
-            # cache directory if the load fails in the middle
-            
+            # cache directory if the load fails in the middle    
             if bundle.create_writers:
                 wd = stack.enter_context(working_dir(
                     pth.data_path([], environ=environ))
@@ -375,16 +374,17 @@ def _make_bundle_core():
                 asset_db_writer = stack.enter_context(
                     AssetDBWriter(
                         wd.getpath(*asset_db_relative(
-                        name, timestr, environ=environ)
+                            name, timestr, environ=environ)
                         )))
                 adjustment_db_writer = stack.enter_context(
                     SQLiteAdjustmentWriter(
-                    wd.getpath(*adjustment_db_relative(
-                    name, timestr, environ=environ)),
-                    BcolzDailyBarReader(daily_bars_path),
-                    bundle.calendar,
-                    overwrite=True,
-                ))
+                        wd.getpath(*adjustment_db_relative(
+                            name, timestr, environ=environ)),
+                        BcolzDailyBarReader(daily_bars_path),
+                        bundle.calendar,
+                        overwrite=True,
+                    )
+                )
             else:
                 daily_bar_writer = None
                 minute_bar_writer = None
