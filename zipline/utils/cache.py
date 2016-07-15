@@ -328,7 +328,7 @@ class working_dir(object):
         self._final_path = final_path
 
     def ensure_dir(self, *path_parts):
-        """ensures a subdirectory of the working directory.
+        """Ensures a subdirectory of the working directory.
 
         Parameters
         ----------
