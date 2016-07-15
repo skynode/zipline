@@ -565,4 +565,4 @@ class AssetDBWriter(object):
         return self
 
     def __exit__(self, *exc_info):
-        pass
+        pass  # Shouldn't dispose of the engine explicitly

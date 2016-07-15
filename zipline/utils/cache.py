@@ -306,22 +306,6 @@ class working_file(object):
         if exc_info[0] is None:
             self._commit()
 
-    @property
-    def tmpfile(self):
-        return self._tmpfile
-
-    @tmpfile.setter
-    def tmpfile(self, value):
-        self._tmpfile = value
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-
 
 class working_dir(object):
     """A context manager for managing a temporary directory that will be moved
@@ -337,15 +321,15 @@ class working_dir(object):
     Notes
     -----
     The file is moved on __exit__ if there are no exceptions.
-    ``working_dir`` uses :func:`shutil.copytree` to move the actual files,
-    meaning it has as strong of guarantees as :func:`shutil.copytree`.
+    ``working_dir`` uses :func:`dir_util.copy_tree` to move the actual files,
+    meaning it has as strong of guarantees as :func:`dir_util.copy_tree`.
     """
     def __init__(self, final_path, *args, **kwargs):
         self.path = mkdtemp()
         self._final_path = final_path
 
-    def mkdir(self, *path_parts):
-        """Create a subdirectory of the working directory.
+    def ensure_dir(self, *path_parts):
+        """ensures a subdirectory of the working directory.
 
         Parameters
         ----------
@@ -353,11 +337,7 @@ class working_dir(object):
             The parts of the path after the working directory.
         """
         path = self.getpath(*path_parts)
-        try:
-            os.makedirs(path)
-        except OSError:
-            if not os.path.isdir(path):
-                raise
+        ensure_directory(path)
         return path
 
     def getpath(self, *path_parts):
@@ -373,7 +353,7 @@ class working_dir(object):
     def _commit(self):
         """Sync the temporary directory to the final path.
         """
-        dir_util.copy_tree(self.path, self._final_path, verbose=1)
+        dir_util.copy_tree(self.path, self._final_path)
 
     def __enter__(self):
         return self
