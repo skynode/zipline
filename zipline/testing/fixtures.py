@@ -882,15 +882,6 @@ class WithBcolzEquityMinuteBarReader(WithEquityMinuteBarData, WithTmpDir):
 
     Methods
     -------
-<<<<<<< HEAD
-    make_minute_bar_data() -> iterable[(int, pd.DataFrame)]
-        A class method that returns a dict mapping sid to dataframe
-        which will be written to the bcolz files that the class's
-        ``BcolzMinuteBarReader`` will read from. By default this creates
-        some simple sythetic data with
-        :func:`~zipline.testing.create_minute_bar_data`
-=======
->>>>>>> e0f6abda2e6d02a7d3d70c270d61d34a913cd06a
     make_bcolz_minute_bar_rootdir_path() -> string
         A class method that returns the path for the directory that contains
         the minute bar ctables. By default this is a subdirectory
@@ -914,28 +905,10 @@ class WithBcolzEquityMinuteBarReader(WithEquityMinuteBarData, WithTmpDir):
 
     @classmethod
     def init_class_fixtures(cls):
-<<<<<<< HEAD
-        super(WithBcolzMinuteBarReader, cls).init_class_fixtures()
-        cls.bcolz_minute_bar_path = p = \
-            cls.make_bcolz_minute_bar_rootdir_path()
-        if cls.BCOLZ_MINUTE_BAR_USE_FULL_CALENDAR:
-            days = cls.trading_schedule.all_execution_days
-        else:
-            days = cls.trading_schedule.execution_days_in_range(
-                cls.trading_schedule.add_execution_days(
-                    -1 * cls.BCOLZ_MINUTE_BAR_LOOKBACK_DAYS,
-                    cls.BCOLZ_MINUTE_BAR_START_DATE,
-                ),
-                cls.BCOLZ_MINUTE_BAR_END_DATE,
-            )
-        cls.bcolz_minute_bar_days = days
-=======
         super(WithBcolzEquityMinuteBarReader, cls).init_class_fixtures()
         cls.bcolz_minute_bar_path = p = \
             cls.make_bcolz_minute_bar_rootdir_path()
         days = cls.equity_minute_bar_days
-
->>>>>>> e0f6abda2e6d02a7d3d70c270d61d34a913cd06a
         writer = BcolzMinuteBarWriter(
             days[0],
             p,
@@ -980,11 +953,7 @@ class WithAdjustmentReader(WithBcolzEquityDailyBarReader):
         A class method that returns the sqlite3 connection string for the
         database in to which the adjustments will be written. By default this
         is an in-memory database.
-<<<<<<< HEAD
-    make_adjustment_writer_daily_bar_reader() -> pd.DataFrame
-=======
     make_adjustment_writer_equity_daily_bar_reader() -> pd.DataFrame
->>>>>>> e0f6abda2e6d02a7d3d70c270d61d34a913cd06a
         A class method that returns the daily bar reader to use for the class's
         adjustment writer. By default this is the class's actual
         ``bcolz_equity_daily_bar_reader`` as inherited from
