@@ -278,7 +278,6 @@ class working_file(object):
     """
     def __init__(self, final_path, *args, **kwargs):
         self._tmpfile = NamedTemporaryFile(delete=False, *args, **kwargs)
-        self._name = self._tmpfile.name
         self._final_path = final_path
 
     @property
