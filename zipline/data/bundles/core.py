@@ -353,7 +353,9 @@ def _make_bundle_core():
                 )
                 daily_bar_writer = BcolzDailyBarWriter(
                     daily_bars_path,
-                    bundle.calendar)
+                    bundle.calendar,
+                    nyse_cal
+                )
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
