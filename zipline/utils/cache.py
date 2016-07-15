@@ -273,8 +273,8 @@ class working_file(object):
     Notes
     -----
     The file is moved on __exit__ if there are no exceptions.
-    ``working_file`` uses :func:`shutil.copyfile` to move the actual files,
-    meaning it has as strong of guarantees as :func:`shutil.copyfile`.
+    ``working_file`` uses :func:`shutil.move` to move the actual files,
+    meaning it has as strong of guarantees as :func:`shutil.move`.
     """
     def __init__(self, final_path, *args, **kwargs):
         self._tmpfile = NamedTemporaryFile(delete=False, *args, **kwargs)
