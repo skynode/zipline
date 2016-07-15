@@ -343,7 +343,7 @@ def _make_bundle_core():
         with dataframe_cache(cachepath, clean_on_failure=False) as cache, \
                 ExitStack() as stack:
             # we use `cleanup_on_failure=False` so that we don't purge the
-            # cache directory if the load fails in the middle    
+            # cache directory if the load fails in the middle
             if bundle.create_writers:
                 wd = stack.enter_context(working_dir(
                     pth.data_path([], environ=environ))
@@ -401,7 +401,6 @@ def _make_bundle_core():
                 show_progress,
                 pth.data_path([name, timestr], environ=environ),
             )
-            
 
     def most_recent_data(bundle_name, timestamp, environ=None):
         """Get the path to the most recent data after ``date``for the
@@ -476,7 +475,6 @@ def _make_bundle_core():
             adjustment_reader=SQLiteAdjustmentReader(
                 adjustment_db_path(name, timestr, environ=environ),
             ),
-            
         )
 
     @preprocess(

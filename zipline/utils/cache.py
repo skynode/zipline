@@ -353,7 +353,7 @@ class working_dir(object):
             The parts of the path after the working directory.
         """
         path = self.getpath(*path_parts)
-        try: 
+        try:
             os.makedirs(path)
         except OSError:
             if not os.path.isdir(path):
