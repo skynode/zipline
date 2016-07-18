@@ -18,10 +18,6 @@ import calendar
 import pandas as pd
 import numpy as np
 import pytz
-import pandas as pd
-
-from itertools import chain
-from six import itervalues
 
 import zipline.finance.risk as risk
 from zipline.utils import factory
@@ -117,7 +113,6 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
     def test_trading_days(self):
         self.assertEqual([x.num_trading_days
                           for x in self.metrics.year_periods],
-
                          [251])
         self.assertEqual([x.num_trading_days
                           for x in self.metrics.month_periods],

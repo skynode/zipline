@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import zipline.finance.risk as risk
 from zipline.utils import factory
-import pandas as pd
 
 from zipline.testing.fixtures import WithTradingEnvironment, ZiplineTestCase
 
