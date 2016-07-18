@@ -30,6 +30,7 @@ from qrisk import (
     alpha,
     annual_volatility,
     beta,
+    cum_returns,
     downside_risk,
     information_ratio,
     max_drawdown,
@@ -79,10 +80,10 @@ class RiskMetricsPeriod(object):
 
     def calculate_metrics(self):
         self.benchmark_period_returns = \
-            self.calculate_period_returns(self.benchmark_returns)
+            cum_returns(self.benchmark_returns).iloc[-1]
 
         self.algorithm_period_returns = \
-            self.calculate_period_returns(self.algorithm_returns)
+            cum_returns(self.algorithm_returns).iloc[-1]
 
         if not self.algorithm_returns.index.equals(
             self.benchmark_returns.index
@@ -225,10 +226,6 @@ class RiskMetricsPeriod(object):
 
         returns = returns[mask]
         return returns
-
-    def calculate_period_returns(self, returns):
-        period_returns = (1. + returns).prod() - 1
-        return period_returns
 
     def calculate_covariance(self):
         """

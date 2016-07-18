@@ -20,6 +20,9 @@ import numpy as np
 import pytz
 import pandas as pd
 
+from itertools import chain
+from six import itervalues
+
 import zipline.finance.risk as risk
 from zipline.utils import factory
 
@@ -38,14 +41,11 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
 
     def init_instance_fixtures(self):
         super(TestRisk, self).init_instance_fixtures()
-
         start_session = pd.Timestamp("2006-01-01", tz='UTC')
-
         end_session = self.trading_calendar.minute_to_session_label(
             pd.Timestamp("2006-12-31", tz='UTC'),
             direction="previous"
         )
-
         self.sim_params = SimulationParameters(
             start_session=start_session,
             end_session=end_session,
@@ -63,16 +63,16 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
             self.algo_returns,
             self.sim_params,
             benchmark_returns=self.benchmark_returns,
-            trading_schedule=self.trading_calendar,
+            trading_calendar=self.trading_calendar,
             treasury_curves=self.env.treasury_curves,
         )
 
     def test_factory(self):
         returns = [0.1] * 100
         r_objects = factory.create_returns_from_list(returns, self.sim_params)
-        self.assertTrue(r_objects.index[-1] <= self.end_date)
-        self.assertTrue(r_objects.index[0] >= self.start_date)
-        self.assertTrue(r_objects.sample().values[0] == 0.1)
+        self.assertTrue(r_objects.index[-1] <=
+                        datetime.datetime(
+                            year=2006, month=12, day=31, tzinfo=pytz.utc))
 
     def test_drawdown(self):
         np.testing.assert_equal(
@@ -532,18 +532,3 @@ class TestRisk(WithTradingEnvironment, ZiplineTestCase):
             )
             self.assert_month(start_date.month, col[-1]._end_session.month)
             self.assert_last_day(col[-1]._end_session)
-
-    def test_sparse_benchmark(self):
-        benchmark_returns = self.benchmark_returns_06.copy()
-        # Set every other day to nan.
-        benchmark_returns.iloc[::2] = np.nan
-
-        report = risk.RiskReport(
-            self.algo_returns_06,
-            self.sim_params,
-            benchmark_returns=benchmark_returns,
-            trading_calendar=self.trading_calendar,
-            treasury_curves=self.env.treasury_curves,
-        )
-        for risk_period in chain.from_iterable(itervalues(report.to_dict())):
-            self.assertIsNone(risk_period['beta'])
