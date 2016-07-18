@@ -111,9 +111,9 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
     def test_ingest(self):
         start = pd.Timestamp('2014-01-06', tz='utc')
         end = pd.Timestamp('2014-01-10', tz='utc')
-        trading_days = get_calendar('NYSE').all_trading_days
+        trading_days = get_calendar('NYSE').all_sessions
         calendar = trading_days[trading_days.slice_indexer(start, end)]
-        minutes = get_calendar('NYSE').trading_minutes_for_days_in_range(
+        minutes = get_calendar('NYSE').minutes_for_sessions_in_range(
             calendar[0], calendar[-1]
         )
 
@@ -176,7 +176,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
 
         columns = 'open', 'high', 'low', 'close', 'volume'
 
-        actual = bundle.minute_bar_reader.load_raw_arrays(
+        actual = bundle.equity_minute_bar_reader.load_raw_arrays(
             columns,
             minutes[0],
             minutes[-1],
@@ -190,7 +190,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
                 msg=colname,
             )
 
-        actual = bundle.daily_bar_reader.load_raw_arrays(
+        actual = bundle.equity_daily_bar_reader.load_raw_arrays(
             columns,
             calendar[0],
             calendar[-1],
