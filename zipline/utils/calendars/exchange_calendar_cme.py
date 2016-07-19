@@ -37,8 +37,8 @@ from .us_holidays import (
 )
 
 US_CENTRAL = timezone('America/Chicago')
-CME_OPEN = time(17)
-CME_CLOSE = time(16)
+CME_OPEN = time(17, 1)
+CME_CLOSE = time(17)
 
 # The CME seems to have different holiday rules depending on the type
 # of instrument.  For example, http://www.cmegroup.com/tools-information/holiday-calendar/files/2016-4th-of-july-holiday-schedule.pdf # noqa
