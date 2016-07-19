@@ -64,4 +64,5 @@ intervaltree==2.1.0
 cachetools==1.1.5
 
 # For financial risk calculations
-qrisk==0.1.4
+-e git://github.com/quantopian/qrisk.git@use_bottleneck#egg=qrisk
+
