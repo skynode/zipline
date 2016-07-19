@@ -790,6 +790,12 @@ class TradingAlgorithm(object):
         return daily_stats
 
     def calculate_capital_changes(self, dt, emission_rate, is_interday):
+        """
+        If there is a capital change for a given dt, this means the the change
+        occurs before `handle_data` on the given dt. In the case of the
+        change being a target value, the change will be computed on the
+        portfolio value according to prices at the given dt
+        """
         try:
             capital_change = self.capital_changes[dt]
         except KeyError:
@@ -804,19 +810,33 @@ class TradingAlgorithm(object):
             # perspective as we have technically not "advanced" to the
             # current dt yet.
             self.perf_tracker.position_tracker.sync_last_sale_prices(
-                self.trading_schedule.previous_execution_minute(
+                self.trading_calendar.previous_minute(
                     dt
                 ),
                 False,
                 self.data_portal
             )
-            self.perf_tracker.cumulative_performance.calculate_performance()
-            self.perf_tracker.todays_performance.calculate_performance()
+
+        # Calculate performance before we sync prices price for the current dt
+        self.perf_tracker.cumulative_performance.calculate_performance()
+        self.perf_tracker.todays_performance.calculate_performance()
 
         if capital_change['type'] == 'target':
-            capital_change_amount = capital_change['value'] - \
-                self.perf_tracker.cumulative_performance.as_portfolio().\
-                portfolio_value
+            # Get an updated portfolio value as of this dt, but do it in a way
+            # so that the performance is not recalculated. This is done so
+            # that `process_capital_change` can find the performance values
+            # for the end of the subperiod, which is the previous dt
+            self.perf_tracker.position_tracker.sync_last_sale_prices(
+                dt,
+                False,
+                self.data_portal
+            )
+            portfolio_value = \
+                self.perf_tracker.position_tracker.stats().net_value + \
+                self.perf_tracker.cumulative_performance.ending_cash
+
+            capital_change_amount = capital_change['value'] - portfolio_value
+
             log.info('Processing capital change to target %s at %s. Capital '
                      'change delta is %s' % (capital_change['value'], dt,
                                              capital_change_amount))
